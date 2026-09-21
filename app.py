@@ -1,197 +1,211 @@
-import streamlit as st
-import sqlite3
-import pandas as pd
 from datetime import datetime
+from google.oauth2.service_account import Credentials
+import gspread
+import pandas as pd
+import streamlit as st
 
-# 1. 페이지 기본 설정
+# 페이지 기본 설정
 st.set_page_config(
     page_title="제천시(중부권) 대학생 e스포츠 리그전",
     page_icon="🎮",
-    layout="wide"
+    layout="wide",
 )
 
-# 2. SQLite 데이터베이스 초기화
-DB_FILE = "esports_league.db"
 
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS registrations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TEXT,
-            game_category TEXT,
-            team_name TEXT,
-            university TEXT,
-            leader_name TEXT,
-            leader_phone TEXT,
-            leader_major TEXT,
-            leader_game_id TEXT,
-            member1_info TEXT,
-            member2_info TEXT,
-            member3_info TEXT,
-            member4_info TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# -------------------------------------------------------------------
+# 1. 구글 시트 연동 설정
+# -------------------------------------------------------------------
+@st.cache_resource
+def get_gsheet_client():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
 
-def insert_registration(data):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO registrations (
-            created_at, game_category, team_name, university,
-            leader_name, leader_phone, leader_major, leader_game_id,
-            member1_info, member2_info, member3_info, member4_info
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', data)
-    conn.commit()
-    conn.close()
+    # Secrets 정보 가져오기 및 private_key 줄바꿈 문자 보정
+    service_account_info = dict(st.secrets["gcp_service_account"])
+    if "private_key" in service_account_info:
+        service_account_info["private_key"] = service_account_info[
+            "private_key"
+        ].replace("\\n", "\n")
 
-def get_registrations():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT * FROM registrations ORDER BY id DESC", conn)
-    conn.close()
-    return df
+    credentials = Credentials.from_service_account_info(
+        service_account_info, scopes=scopes
+    )
+    return gspread.authorize(credentials)
 
-# DB 초기화 실행
-init_db()
 
-# 3. 헤더 영역
+def get_spreadsheet():
+    client = get_gsheet_client()
+    return client.open_by_url(st.secrets["private_gsheet_url"])
+
+
+def get_worksheet():
+    sheet = get_spreadsheet()
+    # 첫 번째 탭을 가져옴
+    return sheet, sheet.sheet1
+
+
+def add_registration_to_sheet(row_data):
+    """구글 시트에 새로운 행 추가 및 저장된 위치 반환"""
+    spreadsheet, worksheet = get_worksheet()
+    # USER_ENTERED 옵션을 통해 수식 및 문자열이 정상적으로 들어가도록 설정
+    worksheet.append_row(row_data, value_input_option="USER_ENTERED")
+    return spreadsheet.title, worksheet.title
+
+
+@st.cache_data(ttl=60)
+def load_data_from_sheet():
+    """구글 시트의 전체 데이터 읽어오기"""
+    _, worksheet = get_worksheet()
+    records = worksheet.get_all_records()
+    return pd.DataFrame(records)
+
+
+# -------------------------------------------------------------------
+# 2. UI 레이아웃
+# -------------------------------------------------------------------
 st.title("🏆 제천시(중부권) 대학생 e스포츠 리그전")
-st.caption("주최/주관: 제천시 e스포츠협회 | 문의: 010-5820-7145 (anjinmo@hanmail.net)")
-st.markdown("---")
+st.markdown(
+    "**주최/주관:** 제천시 e스포츠협회 | **문의:** 010-5820-7145"
+)
 
-# 4. 대회 개요 요약 카드
-col_info1, col_info2, col_info3, col_info4 = st.columns(4)
-with col_info1:
-    st.metric(label="📅 모집 기간", value="2026.09. ~ 09.30")
-with col_info2:
-    st.metric(label="🎮 종목 (5인 1팀)", value="발로란트 / LoL")
-with col_info3:
-    st.metric(label="🥇 종목별 1위 상금", value="1,000,000원")
-with col_info4:
-    st.metric(label="🎓 참가 대상", value="세명대/대원대/중부권 대학생")
+tab1, tab2 = st.tabs(["📝 참가 신청하기", "📊 신청 현황 대시보드"])
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 5. 탭 구성
-tab1, tab2 = st.tabs(["📝 참가 신청서 작성", "📊 신청 현황 대시보드 (관리자)"])
-
-# ==================== TAB 1: 참가 신청서 ====================
+# [TAB 1] 참가 신청서
 with tab1:
-    st.subheader("대회 참가 신청서")
-    st.info("💡 팀 대표자(팀장)가 팀원 5명의 정보를 모두 확인 후 작성해 주세요.")
+    st.subheader("대회 참가 신청서 (5인 1팀)")
+    st.info(
+        "팀장(대표자)이 팀원 5명의 정보를 모두 작성하여 제출해주세요."
+    )
 
-    with st.form(key="apply_form", clear_on_submit=True):
-        st.markdown("### 1. 기본 정보")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            game_category = st.selectbox("참가 종목 *", ["발로란트 (5인 1팀)", "리그 오브 레전드 (5인 1팀)"])
-        with c2:
-            team_name = st.text_input("팀명 *", placeholder="팀명을 입력하세요")
-        with c3:
-            university = st.selectbox("소속 대학교 *", ["세명대학교", "대원대학교", "기타 제천인근 대학교"])
-
-        st.markdown("---")
-        st.markdown("### 2. 팀장(대표자) 정보")
-        l1, l2 = st.columns(2)
-        with l1:
-            leader_name = st.text_input("팀장 이름 *")
-            leader_phone = st.text_input("팀장 연락처 *", placeholder="010-0000-0000")
-        with l2:
-            leader_major = st.text_input("팀장 학과/학번 *", placeholder="예: 컴퓨터공학과 / 20230001")
-            leader_game_id = st.text_input("팀장 게임 ID (#태그 포함) *", placeholder="예: Hide on bush#KR1")
+    with st.form("registration_form", clear_on_submit=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            game_category = st.selectbox(
+                "참가 종목 *", ["발로란트", "리그 오브 레전드"]
+            )
+        with col2:
+            team_name = st.text_input("팀명 *")
+        with col3:
+            university = st.selectbox(
+                "소속 대학교 *",
+                ["세명대학교", "대원대학교", "기타 제천인근 대학교"],
+            )
 
         st.markdown("---")
-        st.markdown("### 3. 팀원 정보 (4명)")
-        
-        members_data = []
+        st.markdown("##### 👑 팀장(대표자) 정보")
+        c1, c2, c3, c4 = st.columns(4)
+        leader_name = c1.text_input("팀장 이름 *")
+        leader_phone = c2.text_input(
+            "팀장 연락처 *", placeholder="010-0000-0000"
+        )
+        leader_major = c3.text_input(
+            "학과 / 학번 *", placeholder="컴퓨터공학과 / 20230001"
+        )
+        leader_game_id = c4.text_input(
+            "게임 라이엇 ID (#태그 포함) *",
+            placeholder="Hide on bush#KR1",
+        )
+
+        st.markdown("---")
+        st.markdown("##### 👥 팀원 정보 (4명)")
+        members = []
         for i in range(1, 5):
-            st.markdown(f"**팀원 {i}**")
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                m_name = st.text_input(f"팀원 {i} 이름 *", key=f"m_name_{i}")
-            with m2:
-                m_major = st.text_input(f"팀원 {i} 학과/학번 *", key=f"m_major_{i}")
-            with m3:
-                m_gid = st.text_input(f"팀원 {i} 게임 ID (#태그 포함) *", key=f"m_gid_{i}")
-            
-            members_data.append(f"{m_name} | {m_major} | {m_gid}")
+            mc1, mc2, mc3 = st.columns(3)
+            m_name = mc1.text_input(f"팀원 {i} 이름 *", key=f"m_name_{i}")
+            m_major = mc2.text_input(
+                f"팀원 {i} 학과/학번 *", key=f"m_major_{i}"
+            )
+            m_id = mc3.text_input(
+                f"팀원 {i} 게임 ID (#태그) *", key=f"m_id_{i}"
+            )
+            members.append(f"{m_name}({m_id})")
 
-        submit_button = st.form_submit_button(label="🚀 참가 신청서 제출하기", use_container_width=True)
+        submitted = st.form_submit_button(
+            "참가 신청서 제출하기", use_container_width=True
+        )
 
-        if submit_button:
-            # 필수값 검증
-            if not team_name or not leader_name or not leader_phone or not leader_game_id:
-                st.error("⚠️ 필수 항목(*표시)을 모두 입력해 주세요.")
+        if submitted:
+            if not (
+                team_name
+                and leader_name
+                and leader_phone
+                and leader_game_id
+            ):
+                st.error("필수 항목(*)을 모두 입력해주세요.")
             else:
-                created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                record = (
-                    created_at, game_category, team_name, university,
-                    leader_name, leader_phone, leader_major, leader_game_id,
-                    members_data[0], members_data[1], members_data[2], members_data[3]
-                )
-                insert_registration(record)
-                st.balloons()
-                st.success(f"🎉 **[{team_name}]** 팀의 참가 신청이 성공적으로 완료되었습니다!")
+                try:
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    row_to_insert = [
+                        now_str,
+                        game_category,
+                        team_name,
+                        university,
+                        leader_name,
+                        leader_phone,
+                        leader_major,
+                        leader_game_id,
+                        members[0],
+                        members[1],
+                        members[2],
+                        members[3],
+                    ]
 
-# ==================== TAB 2: 대시보드 ====================
+                    # 구글 시트에 전송 및 저장된 시트/탭 이름 확인
+                    doc_title, sheet_title = add_registration_to_sheet(
+                        row_to_insert
+                    )
+
+                    # 캐시 비우기 (대시보드 즉시 갱신용)
+                    st.cache_data.clear()
+
+                    st.balloons()
+                    st.success(
+                        f"🎉 '{team_name}' 팀의 참가 신청이 완료되었습니다!\n\n"
+                        f"📌 **저장된 파일명:** `{doc_title}` | **탭 이름:** `{sheet_title}`"
+                    )
+                except Exception as e:
+                    st.error(f"저장 중 오류가 발생했습니다: {e}")
+
+# [TAB 2] 대시보드
 with tab2:
     st.subheader("실시간 참가 신청 현황")
 
-    df = get_registrations()
+    if st.button("🔄 데이터 새로고침"):
+        st.cache_data.clear()
 
-    # 현황 요약 지표
-    total_count = len(df)
-    val_count = len(df[df['game_category'].str.contains('발로란트', na=False)]) if total_count > 0 else 0
-    lol_count = len(df[df['game_category'].str.contains('리그 오브 레전드', na=False)]) if total_count > 0 else 0
+    try:
+        df = load_data_from_sheet()
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric(label="총 접수 팀", value=f"{total_count} 팀")
-    m2.metric(label="발로란트", value=f"{val_count} 팀")
-    m3.metric(label="리그 오브 레전드", value=f"{lol_count} 팀")
-
-    st.markdown("---")
-
-    if total_count > 0:
-        # 데이터 검색 및 필터
-        search_term = st.text_input("🔍 팀명 또는 팀장명 검색", "")
-        if search_term:
-            df_filtered = df[df['team_name'].str.contains(search_term, na=False) | df['leader_name'].str.contains(search_term, na=False)]
+        if df.empty:
+            st.warning(
+                "현재 접수된 참가 팀이 없거나 헤더 행을 읽는 중입니다."
+            )
         else:
-            df_filtered = df
+            m1, m2, m3 = st.columns(3)
+            m1.metric("총 참가 팀", f"{len(df)} 팀")
 
-        # 테이블 표시
-        st.dataframe(
-            df_filtered,
-            column_config={
-                "id": "ID",
-                "created_at": "신청일시",
-                "game_category": "종목",
-                "team_name": "팀명",
-                "university": "대학교",
-                "leader_name": "팀장명",
-                "leader_phone": "연락처",
-                "leader_major": "학과/학번",
-                "leader_game_id": "팀장 게임 ID",
-                "member1_info": "팀원 1",
-                "member2_info": "팀원 2",
-                "member3_info": "팀원 3",
-                "member4_info": "팀원 4",
-            },
-            use_container_width=True,
-            hide_index=True
-        )
+            # 종목 컬럼 존재 시 필터링
+            if "종목" in df.columns:
+                m2.metric(
+                    "발로란트",
+                    f"{len(df[df['종목'] == '발로란트'])} 팀",
+                )
+                m3.metric(
+                    "리그 오브 레전드",
+                    f"{len(df[df['종목'] == '리그 오브 레전드'])} 팀",
+                )
 
-        # CSV 내보내기 버튼
-        csv = df.to_csv(index=False, encoding='utf-8-sig')
-        st.download_button(
-            label="📥 엑셀(CSV) 데이터 다운로드",
-            data=csv,
-            file_name=f"제천시_e스포츠리그전_참가자명단_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-        )
-    else:
-        st.info("현재 접수된 참가 팀이 없습니다.")
+            st.markdown("---")
+            st.dataframe(df, use_container_width=True)
+
+            csv_data = df.to_csv(index=False).encode("utf-8-sig")
+            st.download_button(
+                label="📥 엑셀(CSV) 명단 다운로드",
+                data=csv_data,
+                file_name=f"제천시_e스포츠리그전_참가명단_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+            )
+    except Exception as e:
+        st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
