@@ -22,7 +22,6 @@ def get_gsheet_client():
         "https://www.googleapis.com/auth/drive",
     ]
 
-    # Secrets 정보 가져오기 및 private_key 줄바꿈 문자 보정
     service_account_info = dict(st.secrets["gcp_service_account"])
     if "private_key" in service_account_info:
         service_account_info["private_key"] = service_account_info[
@@ -42,14 +41,12 @@ def get_spreadsheet():
 
 def get_worksheet():
     sheet = get_spreadsheet()
-    # 첫 번째 탭을 가져옴
     return sheet, sheet.sheet1
 
 
 def add_registration_to_sheet(row_data):
-    """구글 시트에 새로운 행 추가 및 저장된 위치 반환"""
+    """구글 시트에 새로운 행 추가"""
     spreadsheet, worksheet = get_worksheet()
-    # USER_ENTERED 옵션을 통해 수식 및 문자열이 정상적으로 들어가도록 설정
     worksheet.append_row(row_data, value_input_option="USER_ENTERED")
     return spreadsheet.title, worksheet.title
 
@@ -120,7 +117,12 @@ with tab1:
             m_id = mc3.text_input(
                 f"팀원 {i} 게임 ID (#태그) *", key=f"m_id_{i}"
             )
-            members.append(f"{m_name}({m_id})")
+            
+            # 이름, 학과/학번, 게임ID 3가지를 보기 좋게 합쳐서 저장
+            if m_name or m_major or m_id:
+                members.append(f"{m_name} ({m_major}, {m_id})")
+            else:
+                members.append("")
 
         submitted = st.form_submit_button(
             "참가 신청서 제출하기", use_container_width=True
@@ -152,18 +154,17 @@ with tab1:
                         members[3],
                     ]
 
-                    # 구글 시트에 전송 및 저장된 시트/탭 이름 확인
+                    # 구글 시트에 데이터 전송
                     doc_title, sheet_title = add_registration_to_sheet(
                         row_to_insert
                     )
 
-                    # 캐시 비우기 (대시보드 즉시 갱신용)
+                    # 대시보드 즉시 갱신용 캐시 비우기
                     st.cache_data.clear()
 
                     st.balloons()
                     st.success(
-                        f"🎉 '{team_name}' 팀의 참가 신청이 완료되었습니다!\n\n"
-                        f"📌 **저장된 파일명:** `{doc_title}` | **탭 이름:** `{sheet_title}`"
+                        f"🎉 '{team_name}' 팀의 참가 신청이 성공적으로 완료되었습니다!"
                     )
                 except Exception as e:
                     st.error(f"저장 중 오류가 발생했습니다: {e}")
@@ -179,14 +180,11 @@ with tab2:
         df = load_data_from_sheet()
 
         if df.empty:
-            st.warning(
-                "현재 접수된 참가 팀이 없거나 헤더 행을 읽는 중입니다."
-            )
+            st.warning("현재 접수된 참가 팀이 없습니다.")
         else:
             m1, m2, m3 = st.columns(3)
             m1.metric("총 참가 팀", f"{len(df)} 팀")
 
-            # 종목 컬럼 존재 시 필터링
             if "종목" in df.columns:
                 m2.metric(
                     "발로란트",
