@@ -126,7 +126,7 @@ with tab1:
 
         # --- 팀원 정보 (4명) ---
         st.markdown("---")
-        st.markdown("##### 👥 팀원 정보 (4명)")
+        st.markdown("##### 👥 주전 팀원 정보 (4명)")
         members_data = []
         for i in range(1, 5):
             st.caption(f"▪ 팀원 {i}")
@@ -141,18 +141,37 @@ with tab1:
                 "phone": m_phone
             })
 
+        # --- 후보 선수 정보 (선택 사항 - 최대 2명) ---
+        st.markdown("---")
+        st.markdown("##### 🔄 후보 선수 정보 (선택 사항 - 최대 2명)")
+        st.caption("※ 대회 당일 참가 불가 인원 발생 시 대체할 후보 선수가 있다면 작성해 주세요. (없을 경우 비워두시면 됩니다.)")
+        
+        sub_members_str_list = []
+        for i in range(1, 3):
+            st.caption(f"▪ 후보 선수 {i} (선택)")
+            sc1, sc2, sc3 = st.columns(3)
+            s_name = sc1.text_input("성명", key=f"s_name_{i}")
+            s_dob = sc2.text_input("생년월일", placeholder="YYMMDD", key=f"s_dob_{i}")
+            s_phone = sc3.text_input("연락처", placeholder="010-0000-0000", key=f"s_phone_{i}")
+
+            # 후보 선수 정보를 작성한 경우에만 문자열로 묶어 저장
+            if s_name or s_dob or s_phone:
+                sub_members_str_list.append(f"{s_name} ({s_dob}, {s_phone})")
+            else:
+                sub_members_str_list.append("")
+
         # --- 개인정보 동의 ---
         st.markdown("---")
         st.markdown("##### 🔒 개인정보 수집·이용 및 제3자 제공 동의")
         st.caption(
-            "※ 팀장(신청자)은 본인을 포함한 팀원 전원에게 개인정보 수집·이용 및 제3자 제공 동의를 미리 받아서 신청서를 작성해야 합니다."
+            "※ 팀장(신청자)은 본인을 포함한 팀원 및 후보 선수 전원에게 개인정보 수집·이용 및 제3자 제공 동의를 미리 받아서 신청서를 작성해야 합니다."
         )
 
         agree_collect = st.checkbox(
-            "참가자 전원(팀장 및 팀원 4명)의 개인정보 수집·이용에 동의합니다. (필수) *"
+            "참가자 전원(팀장, 팀원, 후보선수)의 개인정보 수집·이용에 동의합니다. (필수) *"
         )
         agree_third_party = st.checkbox(
-            "참가자 전원(팀장 및 팀원 4명)의 개인정보 제3자 제공에 동의합니다. (필수) *"
+            "참가자 전원(팀장, 팀원, 후보선수)의 개인정보 제3자 제공에 동의합니다. (필수) *"
         )
 
         submitted = st.form_submit_button(
@@ -173,7 +192,7 @@ with tab1:
                 and all_members_filled
                 and pref_rounds
             ):
-                st.error("필수 항목(*)을 모두 입력해주세요. (예선 라운드 및 팀장/팀원 정보 전체 입력 필요)")
+                st.error("필수 항목(*)을 모두 입력해주세요. (예선 라운드 및 팀장/주전 팀원 정보 전체 입력 필요)")
             elif not (agree_collect and agree_third_party):
                 st.error("개인정보 수집·이용 동의 및 제3자 제공 동의에 모두 체크하셔야 제출이 가능합니다.")
             else:
@@ -181,15 +200,15 @@ with tab1:
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     rounds_str = ", ".join(pref_rounds)
 
-                    # 팀장 정보 정리: 이름 (생년월일, 연락처)
+                    # 팀장 정보 정리
                     leader_info_str = f"{leader_name} ({leader_dob}, {leader_phone})"
 
-                    # 팀원 4명 정보 각각 정리
+                    # 주전 팀원 4명 정보 정리
                     m_str_list = [
                         f"{m['name']} ({m['dob']}, {m['phone']})" for m in members_data
                     ]
 
-                    # 구글 시트에 저장할 1행 데이터
+                    # 구글 시트에 저장할 1행 데이터 (후보선수 1, 2 추가)
                     row_to_insert = [
                         now_str,
                         game_category,
@@ -201,7 +220,9 @@ with tab1:
                         m_str_list[1],
                         m_str_list[2],
                         m_str_list[3],
-                        "동의함", # 개인정보 동의 여부
+                        sub_members_str_list[0],  # 후보 선수 1 (선택)
+                        sub_members_str_list[1],  # 후보 선수 2 (선택)
+                        "동의함",
                     ]
 
                     # 구글 시트에 데이터 전송
