@@ -101,8 +101,8 @@ with tab1:
     st.caption("※ 1라운드 탈락 시 2, 3, 4라운드에 재참가가 가능합니다.")
     st.markdown("---")
 
-    # 2. 신청서 제출 양식 (st.form)
-    with st.form("registration_form", clear_on_submit=True):
+    # 2. 신청서 제출 양식 (st.form) - clear_on_submit을 False로 변경!
+    with st.form("registration_form", clear_on_submit=False):
         col1, col2, col3 = st.columns(3)
         with col1:
             game_category = st.selectbox(
