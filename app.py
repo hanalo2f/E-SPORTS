@@ -11,6 +11,25 @@ st.set_page_config(
     layout="wide",
 )
 
+# --- 상단/하단 Streamlit & GitHub 워터마크 및 아이콘 완전 숨기기 ---
+hide_streamlit_style = """
+    <style>
+    /* 상단 헤더 (깃허브 아이콘, 메뉴, Share 버튼 등) 숨기기 */
+    header {visibility: hidden !important; display: none !important;}
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    
+    /* 하단 푸터 (Host with Streamlit 등) 숨기기 */
+    footer {visibility: hidden !important; display: none !important;}
+    [data-testid="stFooter"] {display: none !important;}
+    
+    /* 모바일 전용 배지 및 워터마크 숨기기 */
+    div[class*="viewerBadge"] {display: none !important;}
+    div[class*="stAppViewerBadge"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
 # 1. 구글 시트 연동 설정
