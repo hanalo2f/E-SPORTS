@@ -186,7 +186,7 @@ with tab2:
             
             if login_submitted:
                 # secrets.toml의 admin_password 항목 확인 (없을 경우 기본값 지정 가능)
-                correct_password = st.secrets.get("admin_password", "2021")
+                correct_password = st.secrets.get("admin_password", "1234")
                 
                 if password_input == correct_password:
                     st.session_state.admin_authenticated = True
