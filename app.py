@@ -169,41 +169,75 @@ with tab1:
                 except Exception as e:
                     st.error(f"저장 중 오류가 발생했습니다: {e}")
 
-# [TAB 2] 대시보드
+# [TAB 2] 대시보드 (관리자 전용)
 with tab2:
-    st.subheader("실시간 참가 신청 현황")
+    # 관리자 인증 세션 상태 초기화
+    if "admin_authenticated" not in st.session_state:
+        st.session_state.admin_authenticated = False
 
-    if st.button("🔄 데이터 새로고침"):
-        st.cache_data.clear()
+    # 1. 미인증 상태: 비밀번호 입력폼 표시
+    if not st.session_state.admin_authenticated:
+        st.subheader("🔒 관리자 전용 페이지")
+        st.info("신청 현황 대시보드는 관리자만 접근 가능합니다. 비밀번호를 입력해주세요.")
+        
+        with st.form("admin_login_form"):
+            password_input = st.text_input("관리자 비밀번호", type="password")
+            login_submitted = st.form_submit_button("로그인", use_container_width=True)
+            
+            if login_submitted:
+                # secrets.toml의 admin_password 항목 확인 (없을 경우 기본값 지정 가능)
+                correct_password = st.secrets.get("admin_password", "1234")
+                
+                if password_input == correct_password:
+                    st.session_state.admin_authenticated = True
+                    st.success("로그인에 성공했습니다.")
+                    st.rerun()  # 화면 즉시 갱신
+                else:
+                    st.error("비밀번호가 올바르지 않습니다.")
 
-    try:
-        df = load_data_from_sheet()
+    # 2. 인증 완료 상태: 대시보드 출력
+    else:
+        top_col1, top_col2 = st.columns([8, 2])
+        with top_col1:
+            st.subheader("📊 실시간 참가 신청 현황 (관리자)")
+        with top_col2:
+            if st.button("🚪 로그아웃", use_container_width=True):
+                st.session_state.admin_authenticated = False
+                st.rerun()
 
-        if df.empty:
-            st.warning("현재 접수된 참가 팀이 없습니다.")
-        else:
-            m1, m2, m3 = st.columns(3)
-            m1.metric("총 참가 팀", f"{len(df)} 팀")
+        st.markdown("---")
 
-            if "종목" in df.columns:
-                m2.metric(
-                    "발로란트",
-                    f"{len(df[df['종목'] == '발로란트'])} 팀",
+        if st.button("🔄 데이터 새로고침"):
+            st.cache_data.clear()
+
+        try:
+            df = load_data_from_sheet()
+
+            if df.empty:
+                st.warning("현재 접수된 참가 팀이 없습니다.")
+            else:
+                m1, m2, m3 = st.columns(3)
+                m1.metric("총 참가 팀", f"{len(df)} 팀")
+
+                if "종목" in df.columns:
+                    m2.metric(
+                        "발로란트",
+                        f"{len(df[df['종목'] == '발로란트'])} 팀",
+                    )
+                    m3.metric(
+                        "리그 오브 레전드",
+                        f"{len(df[df['종목'] == '리그 오브 레전드'])} 팀",
+                    )
+
+                st.markdown("---")
+                st.dataframe(df, use_container_width=True)
+
+                csv_data = df.to_csv(index=False).encode("utf-8-sig")
+                st.download_button(
+                    label="📥 엑셀(CSV) 명단 다운로드",
+                    data=csv_data,
+                    file_name=f"제천시_e스포츠리그전_참가명단_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
                 )
-                m3.metric(
-                    "리그 오브 레전드",
-                    f"{len(df[df['종목'] == '리그 오브 레전드'])} 팀",
-                )
-
-            st.markdown("---")
-            st.dataframe(df, use_container_width=True)
-
-            csv_data = df.to_csv(index=False).encode("utf-8-sig")
-            st.download_button(
-                label="📥 엑셀(CSV) 명단 다운로드",
-                data=csv_data,
-                file_name=f"제천시_e스포츠리그전_참가명단_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv",
-            )
-    except Exception as e:
-        st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
+        except Exception as e:
+            st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
