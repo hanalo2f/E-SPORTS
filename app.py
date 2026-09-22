@@ -11,35 +11,35 @@ st.set_page_config(
     layout="wide",
 )
 
-st.set_page_config(page_title="제천시 e스포츠 대회 참가신청", page_icon="🎮", layout="wide")
+# st.set_page_config(page_title="제천시 e스포츠 대회 참가신청", page_icon="🎮", layout="wide")
 
-# --- 워터마크 / 툴바 / 푸터 완벽 차단 CSS ---
-st.markdown("""
-    <style>
-    /* 1. 상단 헤더 및 툴바 강제 숨김 */
-    header, [data-testid="stHeader"], [data-testid="stToolbar"], .stAppHeader {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0px !important;
-    }
+# # --- 워터마크 / 툴바 / 푸터 완벽 차단 CSS ---
+# st.markdown("""
+#     <style>
+#     /* 1. 상단 헤더 및 툴바 강제 숨김 */
+#     header, [data-testid="stHeader"], [data-testid="stToolbar"], .stAppHeader {
+#         display: none !important;
+#         visibility: hidden !important;
+#         height: 0px !important;
+#     }
     
-    /* 2. 하단 푸터 및 워터마크 강제 숨김 */
-    footer, [data-testid="stFooter"], #MainMenu {
-        display: none !important;
-        visibility: hidden !important;
-    }
+#     /* 2. 하단 푸터 및 워터마크 강제 숨김 */
+#     footer, [data-testid="stFooter"], #MainMenu {
+#         display: none !important;
+#         visibility: hidden !important;
+#     }
 
-    /* 3. 배지 및 상태 위젯 숨김 */
-    [data-testid="stStatusWidget"], div[class*="viewerBadge"] {
-        display: none !important;
-    }
+#     /* 3. 배지 및 상태 위젯 숨김 */
+#     [data-testid="stStatusWidget"], div[class*="viewerBadge"] {
+#         display: none !important;
+#     }
     
-    /* 4. 상단 여백 보정 */
-    .main .block-container {
-        padding-top: 1.5rem !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
+#     /* 4. 상단 여백 보정 */
+#     .main .block-container {
+#         padding-top: 1.5rem !important;
+#     }
+#     </style>
+# """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
 # 1. 구글 시트 연동 설정
