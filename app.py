@@ -75,19 +75,19 @@ with tab1:
     st.info("팀장(대표자)이 팀원 5명의 정보를 모두 작성하여 제출해주세요.")
 
     # ----------------------------------------------------
-    # 0. 성공 메시지 및 폼 초기화 상태 관리 (방법 B 핵심)
+    # 0. 성공 메시지 처리 (st.toast로 3~4초 후 자동 소멸!)
     # ----------------------------------------------------
     if "form_version" not in st.session_state:
         st.session_state.form_version = 0
 
-    # 직전에 제출 성공한 기록이 있다면 성공 메시지 표시
     if "success_msg" in st.session_state:
         st.balloons()
-        st.success(st.session_state.success_msg)
-        del st.session_state.success_msg  # 1회 표시 후 메시지 삭제
+        # 토스트 알림: 화면 우측 하단에 떴다가 3초 후 자동으로 사라짐
+        st.toast(st.session_state.success_msg, icon="🎉")
+        del st.session_state.success_msg
 
     # ----------------------------------------------------
-    # 1. 예선 라운드 선택 (st.form 바깥에 배치하여 실시간 반응)
+    # 1. 예선 라운드 선택
     # ----------------------------------------------------
     st.markdown("##### 🗓️ 참가 희망 예선 라운드 선택 (중복 선택 가능) *")
     rc1, rc2, rc3, rc4 = st.columns(4)
@@ -116,10 +116,10 @@ with tab1:
     st.markdown("---")
 
     # ----------------------------------------------------
-    # 2. 신청서 제출 양식 (form_version을 key로 지정)
+    # 2. 신청서 제출 양식
     # ----------------------------------------------------
     form_key = f"registration_form_{st.session_state.form_version}"
-    
+
     with st.form(form_key, clear_on_submit=False):
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -163,7 +163,7 @@ with tab1:
         st.markdown("---")
         st.markdown("##### 🔄 후보 선수 정보 (선택 사항 - 최대 2명)")
         st.caption("※ 대회 당일 참가 불가 인원 발생 시 대체할 후보 선수가 있다면 작성해 주세요. (없을 경우 비워두시면 됩니다.)")
-        
+
         sub_members_str_list = []
         for i in range(1, 3):
             st.caption(f"▪ 후보 선수 {i} (선택)")
@@ -200,7 +200,6 @@ with tab1:
                 m["name"] and m["dob"] and m["phone"] for m in members_data
             )
 
-            # 검증 실패 시: 에러 출력 (입력폼 유지)
             if not (
                 team_name
                 and leader_name
@@ -238,14 +237,14 @@ with tab1:
                         "동의함",
                     ]
 
-                    # 구글 시트에 전송
+                    # 구글 시트 저장
                     doc_title, sheet_title = add_registration_to_sheet(row_to_insert)
 
                     st.cache_data.clear()
 
-                    # 제출 성공 시: 폼 버전을 올려 입력창을 초기화하고 성공 메시지 세팅 후 rerun
+                    # 제출 성공 시 처리
                     st.session_state.form_version += 1
-                    st.session_state.success_msg = f"🎉 '{team_name}' 팀의 참가 신청이 성공적으로 완료되었습니다!"
+                    st.session_state.success_msg = f"'{team_name}' 팀의 참가 신청이 성공적으로 완료되었습니다!"
                     st.rerun()
 
                 except Exception as e:
