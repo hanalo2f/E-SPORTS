@@ -72,12 +72,38 @@ tab1, tab2 = st.tabs(["📝 참가 신청하기", "📊 신청 현황 대시보�
 # [TAB 1] 참가 신청서
 with tab1:
     st.subheader("대회 참가 신청서 (5인 1팀)")
-    st.info(
-        "팀장(대표자)이 팀원 5명의 정보를 모두 작성하여 제출해주세요."
-    )
+    st.info("팀장(대표자)이 팀원 5명의 정보를 모두 작성하여 제출해주세요.")
 
+    # 1. 예선 라운드 선택 (st.form 바깥에 배치하여 클릭 즉시 실시간 반응!)
+    st.markdown("##### 🗓️ 참가 희망 예선 라운드 선택 (중복 선택 가능) *")
+    rc1, rc2, rc3, rc4 = st.columns(4)
+
+    r1 = rc1.checkbox("1라운드 (10월 7일)", value=True)
+    r2 = rc2.checkbox("2라운드 (10월 14일)")
+    r3 = rc3.checkbox("3라운드 (10월 21일)")
+    r4 = rc4.checkbox("4라운드 (10월 28일)")
+
+    pref_rounds = []
+    if r1:
+        pref_rounds.append("1라운드 (10월 7일)")
+    if r2:
+        pref_rounds.append("2라운드 (10월 14일)")
+    if r3:
+        pref_rounds.append("3라운드 (10월 21일)")
+    if r4:
+        pref_rounds.append("4라운드 (10월 28일)")
+
+    # 실시간 선택 결과 표시
+    if pref_rounds:
+        st.info(f"📌 **선택한 라운드:** {', '.join(pref_rounds)}")
+    else:
+        st.warning("⚠️ 최소 1개 이상의 예선 라운드를 선택해 주세요.")
+
+    st.caption("※ 1라운드 탈락 시 2, 3, 4라운드에 재참가가 가능합니다.")
+    st.markdown("---")
+
+    # 2. 신청서 제출 양식 (st.form)
     with st.form("registration_form", clear_on_submit=True):
-        # 기존 종목, 팀명, 대학교 컬럼 (3개)
         col1, col2, col3 = st.columns(3)
         with col1:
             game_category = st.selectbox(
@@ -90,31 +116,6 @@ with tab1:
                 "소속 대학교 *",
                 ["세명대학교", "대원대학교", "기타 제천인근 대학교"],
             )
-
-        st.markdown("---")
-        # 예선 라운드 선택 (4개 체크박스로 상시 노출)
-        st.markdown("##### 🗓️ 참가 희망 예선 라운드 선택 (중복 선택 가능) *")
-        rc1, rc2, rc3, rc4 = st.columns(4)
-        
-        r1 = rc1.checkbox("1라운드 (10월 7일)", value=True)
-        r2 = rc2.checkbox("2라운드 (10월 14일)")
-        r3 = rc3.checkbox("3라운드 (10월 21일)")
-        r4 = rc4.checkbox("4라운드 (10월 28일)")
-
-        # 체크된 라운드 수집
-        pref_rounds = []
-        if r1: pref_rounds.append("1라운드 (10월 7일)")
-        if r2: pref_rounds.append("2라운드 (10월 14일)")
-        if r3: pref_rounds.append("3라운드 (10월 21일)")
-        if r4: pref_rounds.append("4라운드 (10월 28일)")
-
-        # 선택한 라운드 별도 안내 상자로 표시
-        if pref_rounds:
-            st.info(f"📌 **선택한 라운드:** {', '.join(pref_rounds)}")
-        else:
-            st.warning("⚠️ 최소 1개 이상의 예선 라운드를 선택해 주세요.")
-
-        st.caption("※ 1라운드 탈락 시 2, 3, 4라운드에 재참가가 가능합니다.")
 
         st.markdown("---")
         st.markdown("##### 👑 팀장(대표자) 정보")
@@ -143,8 +144,7 @@ with tab1:
             m_id = mc3.text_input(
                 f"팀원 {i} 게임 ID (#태그) *", key=f"m_id_{i}"
             )
-            
-            # 이름, 학과/학번, 게임ID 3가지를 보기 좋게 합쳐서 저장
+
             if m_name or m_major or m_id:
                 members.append(f"{m_name} ({m_major}, {m_id})")
             else:
@@ -155,26 +155,23 @@ with tab1:
         )
 
         if submitted:
-            # 필수 항목 검증 시 라운드 선택(pref_rounds)이 비어있지 않은지도 확인
             if not (
                 team_name
                 and leader_name
                 and leader_phone
                 and leader_game_id
-                and pref_rounds  # 최소 1개 이상의 라운드가 선택되었는지 확인
+                and pref_rounds  # 라운드가 1개 이상 체크되었는지 확인
             ):
                 st.error("필수 항목(*)을 모두 입력해주세요. (예선 라운드는 1개 이상 선택해야 합니다.)")
             else:
                 try:
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    # 선택된 라운드 목록을 쉼표(,)로 합쳐서 하나의 문자열로 만듦
                     rounds_str = ", ".join(pref_rounds)
 
                     row_to_insert = [
                         now_str,
                         game_category,
-                        rounds_str,  # <-- 중복 선택된 라운드들이 한 칸에 함께 기록됩니다.
+                        rounds_str,  # 구글 시트에 선택된 라운드 저장
                         team_name,
                         university,
                         leader_name,
@@ -188,9 +185,7 @@ with tab1:
                     ]
 
                     # 구글 시트에 데이터 전송
-                    doc_title, sheet_title = add_registration_to_sheet(
-                        row_to_insert
-                    )
+                    doc_title, sheet_title = add_registration_to_sheet(row_to_insert)
 
                     # 대시보드 즉시 갱신용 캐시 비우기
                     st.cache_data.clear()
