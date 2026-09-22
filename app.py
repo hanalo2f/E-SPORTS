@@ -11,40 +11,35 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 상단/하단 Streamlit & GitHub 워터마크, 배지, 툴바 완전 제거 ---
-hide_all_streamlit_elements = """
+st.set_page_config(page_title="제천시 e스포츠 대회 참가신청", page_icon="🎮", layout="wide")
+
+# --- 워터마크 / 툴바 / 푸터 완벽 차단 CSS ---
+st.markdown("""
     <style>
-    /* 1. 상단 헤더, 툴바, 깃허브/스트림릿 아이콘 강제 숨김 */
-    header, [data-testid="stHeader"], [data-testid="stToolbar"], .stAppHeader, .stAppToolbar {
+    /* 1. 상단 헤더 및 툴바 강제 숨김 */
+    header, [data-testid="stHeader"], [data-testid="stToolbar"], .stAppHeader {
         display: none !important;
         visibility: hidden !important;
-        height: 0 !important;
+        height: 0px !important;
     }
-
-    /* 2. 하단 푸터 및 메뉴 숨김 */
+    
+    /* 2. 하단 푸터 및 워터마크 강제 숨김 */
     footer, [data-testid="stFooter"], #MainMenu {
         display: none !important;
         visibility: hidden !important;
     }
 
-    /* 3. 모바일/PC 뷰어 배지 (GitHub & Streamlit 링크 배지) 강제 숨김 */
-    div[class*="viewerBadge"], 
-    div[class*="stAppViewerBadge"], 
-    div[class*="styles_viewerBadge"], 
-    a[href*="github.com"], 
-    a[href*="streamlit.io"], 
-    [data-testid="stStatusWidget"] {
+    /* 3. 배지 및 상태 위젯 숨김 */
+    [data-testid="stStatusWidget"], div[class*="viewerBadge"] {
         display: none !important;
-        visibility: hidden !important;
     }
-
-    /* 4. 상단 여백 정리 */
+    
+    /* 4. 상단 여백 보정 */
     .main .block-container {
-        padding-top: 1rem !important;
+        padding-top: 1.5rem !important;
     }
     </style>
-"""
-st.markdown(hide_all_streamlit_elements, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
 # 1. 구글 시트 연동 설정
