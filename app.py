@@ -74,7 +74,21 @@ with tab1:
     st.subheader("대회 참가 신청서 (5인 1팀)")
     st.info("팀장(대표자)이 팀원 5명의 정보를 모두 작성하여 제출해주세요.")
 
+    # ----------------------------------------------------
+    # 0. 성공 메시지 및 폼 초기화 상태 관리 (방법 B 핵심)
+    # ----------------------------------------------------
+    if "form_version" not in st.session_state:
+        st.session_state.form_version = 0
+
+    # 직전에 제출 성공한 기록이 있다면 성공 메시지 표시
+    if "success_msg" in st.session_state:
+        st.balloons()
+        st.success(st.session_state.success_msg)
+        del st.session_state.success_msg  # 1회 표시 후 메시지 삭제
+
+    # ----------------------------------------------------
     # 1. 예선 라운드 선택 (st.form 바깥에 배치하여 실시간 반응)
+    # ----------------------------------------------------
     st.markdown("##### 🗓️ 참가 희망 예선 라운드 선택 (중복 선택 가능) *")
     rc1, rc2, rc3, rc4 = st.columns(4)
 
@@ -101,8 +115,12 @@ with tab1:
     st.caption("※ 1라운드 탈락 시 2, 3, 4라운드에 재참가가 가능합니다.")
     st.markdown("---")
 
-    # 2. 신청서 제출 양식 (st.form) - clear_on_submit을 False로 변경!
-    with st.form("registration_form", clear_on_submit=False):
+    # ----------------------------------------------------
+    # 2. 신청서 제출 양식 (form_version을 key로 지정)
+    # ----------------------------------------------------
+    form_key = f"registration_form_{st.session_state.form_version}"
+    
+    with st.form(form_key, clear_on_submit=False):
         col1, col2, col3 = st.columns(3)
         with col1:
             game_category = st.selectbox(
@@ -124,16 +142,16 @@ with tab1:
         leader_dob = lc2.text_input("팀장 생년월일 *", placeholder="YYMMDD (예: 020101)")
         leader_phone = lc3.text_input("팀장 연락처 *", placeholder="010-0000-0000")
 
-        # --- 팀원 정보 (4명) ---
+        # --- 주전 팀원 정보 (4명) ---
         st.markdown("---")
         st.markdown("##### 👥 주전 팀원 정보 (4명)")
         members_data = []
         for i in range(1, 5):
             st.caption(f"▪ 팀원 {i}")
             mc1, mc2, mc3 = st.columns(3)
-            m_name = mc1.text_input("성명 *", key=f"m_name_{i}")
-            m_dob = mc2.text_input("생년월일 *", placeholder="YYMMDD", key=f"m_dob_{i}")
-            m_phone = mc3.text_input("연락처 *", placeholder="010-0000-0000", key=f"m_phone_{i}")
+            m_name = mc1.text_input("성명 *", key=f"m_name_{i}_{st.session_state.form_version}")
+            m_dob = mc2.text_input("생년월일 *", placeholder="YYMMDD", key=f"m_dob_{i}_{st.session_state.form_version}")
+            m_phone = mc3.text_input("연락처 *", placeholder="010-0000-0000", key=f"m_phone_{i}_{st.session_state.form_version}")
 
             members_data.append({
                 "name": m_name,
@@ -150,11 +168,10 @@ with tab1:
         for i in range(1, 3):
             st.caption(f"▪ 후보 선수 {i} (선택)")
             sc1, sc2, sc3 = st.columns(3)
-            s_name = sc1.text_input("성명", key=f"s_name_{i}")
-            s_dob = sc2.text_input("생년월일", placeholder="YYMMDD", key=f"s_dob_{i}")
-            s_phone = sc3.text_input("연락처", placeholder="010-0000-0000", key=f"s_phone_{i}")
+            s_name = sc1.text_input("성명", key=f"s_name_{i}_{st.session_state.form_version}")
+            s_dob = sc2.text_input("생년월일", placeholder="YYMMDD", key=f"s_dob_{i}_{st.session_state.form_version}")
+            s_phone = sc3.text_input("연락처", placeholder="010-0000-0000", key=f"s_phone_{i}_{st.session_state.form_version}")
 
-            # 후보 선수 정보를 작성한 경우에만 문자열로 묶어 저장
             if s_name or s_dob or s_phone:
                 sub_members_str_list.append(f"{s_name} ({s_dob}, {s_phone})")
             else:
@@ -179,11 +196,11 @@ with tab1:
         )
 
         if submitted:
-            # 팀원 필수 정보 작성 여부 검증
             all_members_filled = all(
                 m["name"] and m["dob"] and m["phone"] for m in members_data
             )
 
+            # 검증 실패 시: 에러 출력 (입력폼 유지)
             if not (
                 team_name
                 and leader_name
@@ -200,15 +217,11 @@ with tab1:
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     rounds_str = ", ".join(pref_rounds)
 
-                    # 팀장 정보 정리
                     leader_info_str = f"{leader_name} ({leader_dob}, {leader_phone})"
-
-                    # 주전 팀원 4명 정보 정리
                     m_str_list = [
                         f"{m['name']} ({m['dob']}, {m['phone']})" for m in members_data
                     ]
 
-                    # 구글 시트에 저장할 1행 데이터 (후보선수 1, 2 추가)
                     row_to_insert = [
                         now_str,
                         game_category,
@@ -220,19 +233,21 @@ with tab1:
                         m_str_list[1],
                         m_str_list[2],
                         m_str_list[3],
-                        sub_members_str_list[0],  # 후보 선수 1 (선택)
-                        sub_members_str_list[1],  # 후보 선수 2 (선택)
+                        sub_members_str_list[0],
+                        sub_members_str_list[1],
                         "동의함",
                     ]
 
-                    # 구글 시트에 데이터 전송
+                    # 구글 시트에 전송
                     doc_title, sheet_title = add_registration_to_sheet(row_to_insert)
 
                     st.cache_data.clear()
-                    st.balloons()
-                    st.success(
-                        f"🎉 '{team_name}' 팀의 참가 신청이 성공적으로 완료되었습니다!"
-                    )
+
+                    # 제출 성공 시: 폼 버전을 올려 입력창을 초기화하고 성공 메시지 세팅 후 rerun
+                    st.session_state.form_version += 1
+                    st.session_state.success_msg = f"🎉 '{team_name}' 팀의 참가 신청이 성공적으로 완료되었습니다!"
+                    st.rerun()
+
                 except Exception as e:
                     st.error(f"저장 중 오류가 발생했습니다: {e}")
 
