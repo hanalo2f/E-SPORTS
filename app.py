@@ -74,7 +74,7 @@ with tab1:
     st.subheader("대회 참가 신청서 (5인 1팀)")
     st.info("팀장(대표자)이 팀원 5명의 정보를 모두 작성하여 제출해주세요.")
 
-    # 1. 예선 라운드 선택 (st.form 바깥에 배치하여 클릭 즉시 실시간 반응!)
+    # 1. 예선 라운드 선택 (st.form 바깥에 배치하여 실시간 반응)
     st.markdown("##### 🗓️ 참가 희망 예선 라운드 선택 (중복 선택 가능) *")
     rc1, rc2, rc3, rc4 = st.columns(4)
 
@@ -93,7 +93,6 @@ with tab1:
     if r4:
         pref_rounds.append("4라운드 (10월 28일)")
 
-    # 실시간 선택 결과 표시
     if pref_rounds:
         st.info(f"📌 **선택한 라운드:** {', '.join(pref_rounds)}")
     else:
@@ -117,79 +116,98 @@ with tab1:
                 ["세명대학교", "대원대학교", "기타 제천인근 대학교"],
             )
 
+        # --- 팀장 정보 ---
         st.markdown("---")
         st.markdown("##### 👑 팀장(대표자) 정보")
-        c1, c2, c3, c4 = st.columns(4)
-        leader_name = c1.text_input("팀장 이름 *")
-        leader_phone = c2.text_input(
-            "팀장 연락처 *", placeholder="010-0000-0000"
-        )
-        leader_major = c3.text_input(
-            "학과 / 학번 *", placeholder="컴퓨터공학과 / 20230001"
-        )
-        leader_game_id = c4.text_input(
-            "게임 라이엇 ID (#태그 포함) *",
-            placeholder="Hide on bush#KR1",
-        )
+        lc1, lc2, lc3 = st.columns(3)
+        leader_name = lc1.text_input("팀장 성명 *")
+        leader_dob = lc2.text_input("팀장 생년월일 *", placeholder="YYMMDD (예: 020101)")
+        leader_phone = lc3.text_input("팀장 연락처 *", placeholder="010-0000-0000")
 
+        # --- 팀원 정보 (4명) ---
         st.markdown("---")
         st.markdown("##### 👥 팀원 정보 (4명)")
-        members = []
+        members_data = []
         for i in range(1, 5):
+            st.caption(f"▪ 팀원 {i}")
             mc1, mc2, mc3 = st.columns(3)
-            m_name = mc1.text_input(f"팀원 {i} 이름 *", key=f"m_name_{i}")
-            m_major = mc2.text_input(
-                f"팀원 {i} 학과/학번 *", key=f"m_major_{i}"
-            )
-            m_id = mc3.text_input(
-                f"팀원 {i} 게임 ID (#태그) *", key=f"m_id_{i}"
-            )
+            m_name = mc1.text_input("성명 *", key=f"m_name_{i}")
+            m_dob = mc2.text_input("생년월일 *", placeholder="YYMMDD", key=f"m_dob_{i}")
+            m_phone = mc3.text_input("연락처 *", placeholder="010-0000-0000", key=f"m_phone_{i}")
 
-            if m_name or m_major or m_id:
-                members.append(f"{m_name} ({m_major}, {m_id})")
-            else:
-                members.append("")
+            members_data.append({
+                "name": m_name,
+                "dob": m_dob,
+                "phone": m_phone
+            })
+
+        # --- 개인정보 동의 ---
+        st.markdown("---")
+        st.markdown("##### 🔒 개인정보 수집·이용 및 제3자 제공 동의")
+        st.caption(
+            "※ 팀장(신청자)은 본인을 포함한 팀원 전원에게 개인정보 수집·이용 및 제3자 제공 동의를 미리 받아서 신청서를 작성해야 합니다."
+        )
+
+        agree_collect = st.checkbox(
+            "참가자 전원(팀장 및 팀원 4명)의 개인정보 수집·이용에 동의합니다. (필수) *"
+        )
+        agree_third_party = st.checkbox(
+            "참가자 전원(팀장 및 팀원 4명)의 개인정보 제3자 제공에 동의합니다. (필수) *"
+        )
 
         submitted = st.form_submit_button(
             "참가 신청서 제출하기", use_container_width=True
         )
 
         if submitted:
+            # 팀원 필수 정보 작성 여부 검증
+            all_members_filled = all(
+                m["name"] and m["dob"] and m["phone"] for m in members_data
+            )
+
             if not (
                 team_name
                 and leader_name
+                and leader_dob
                 and leader_phone
-                and leader_game_id
-                and pref_rounds  # 라운드가 1개 이상 체크되었는지 확인
+                and all_members_filled
+                and pref_rounds
             ):
-                st.error("필수 항목(*)을 모두 입력해주세요. (예선 라운드는 1개 이상 선택해야 합니다.)")
+                st.error("필수 항목(*)을 모두 입력해주세요. (예선 라운드 및 팀장/팀원 정보 전체 입력 필요)")
+            elif not (agree_collect and agree_third_party):
+                st.error("개인정보 수집·이용 동의 및 제3자 제공 동의에 모두 체크하셔야 제출이 가능합니다.")
             else:
                 try:
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     rounds_str = ", ".join(pref_rounds)
 
+                    # 팀장 정보 정리: 이름 (생년월일, 연락처)
+                    leader_info_str = f"{leader_name} ({leader_dob}, {leader_phone})"
+
+                    # 팀원 4명 정보 각각 정리
+                    m_str_list = [
+                        f"{m['name']} ({m['dob']}, {m['phone']})" for m in members_data
+                    ]
+
+                    # 구글 시트에 저장할 1행 데이터
                     row_to_insert = [
                         now_str,
                         game_category,
-                        rounds_str,  # 구글 시트에 선택된 라운드 저장
+                        rounds_str,
                         team_name,
                         university,
-                        leader_name,
-                        leader_phone,
-                        leader_major,
-                        leader_game_id,
-                        members[0],
-                        members[1],
-                        members[2],
-                        members[3],
+                        leader_info_str,
+                        m_str_list[0],
+                        m_str_list[1],
+                        m_str_list[2],
+                        m_str_list[3],
+                        "동의함", # 개인정보 동의 여부
                     ]
 
                     # 구글 시트에 데이터 전송
                     doc_title, sheet_title = add_registration_to_sheet(row_to_insert)
 
-                    # 대시보드 즉시 갱신용 캐시 비우기
                     st.cache_data.clear()
-
                     st.balloons()
                     st.success(
                         f"🎉 '{team_name}' 팀의 참가 신청이 성공적으로 완료되었습니다!"
