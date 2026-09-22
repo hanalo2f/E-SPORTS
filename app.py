@@ -77,18 +77,32 @@ with tab1:
     )
 
     with st.form("registration_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             game_category = st.selectbox(
                 "참가 종목 *", ["발로란트", "리그 오브 레전드"]
             )
         with col2:
-            team_name = st.text_input("팀명 *")
+            # st.selectbox -> st.multiselect 로 변경 (중복 선택 가능)
+            pref_rounds = st.multiselect(
+                "참가 희망 예선 라운드 (중복 선택 가능) *",
+                [
+                    "1라운드 (10월 7일)",
+                    "2라운드 (10월 14일)",
+                    "3라운드 (10월 21일)",
+                    "4라운드 (10월 28일)",
+                ],
+                default=["1라운드 (10월 7일)"],  # 기본 선택값 지정 (필요 시 제외 가능)
+            )
         with col3:
+            team_name = st.text_input("팀명 *")
+        with col4:
             university = st.selectbox(
                 "소속 대학교 *",
                 ["세명대학교", "대원대학교", "기타 제천인근 대학교"],
             )
+
+        st.caption("※ 1라운드 탈락 시 2, 3, 4라운드에 재참가가 가능합니다.")
 
         st.markdown("---")
         st.markdown("##### 👑 팀장(대표자) 정보")
@@ -129,19 +143,26 @@ with tab1:
         )
 
         if submitted:
+            # 필수 항목 검증 시 라운드 선택(pref_rounds)이 비어있지 않은지도 확인
             if not (
                 team_name
                 and leader_name
                 and leader_phone
                 and leader_game_id
+                and pref_rounds  # 최소 1개 이상의 라운드가 선택되었는지 확인
             ):
-                st.error("필수 항목(*)을 모두 입력해주세요.")
+                st.error("필수 항목(*)을 모두 입력해주세요. (예선 라운드는 1개 이상 선택해야 합니다.)")
             else:
                 try:
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # 선택된 라운드 목록을 쉼표(,)로 합쳐서 하나의 문자열로 만듦
+                    rounds_str = ", ".join(pref_rounds)
+
                     row_to_insert = [
                         now_str,
                         game_category,
+                        rounds_str,  # <-- 중복 선택된 라운드들이 한 칸에 함께 기록됩니다.
                         team_name,
                         university,
                         leader_name,
