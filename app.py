@@ -77,30 +77,42 @@ with tab1:
     )
 
     with st.form("registration_form", clear_on_submit=True):
-        col1, col2, col3, col4 = st.columns(4)
+        # 기존 종목, 팀명, 대학교 컬럼 (3개)
+        col1, col2, col3 = st.columns(3)
         with col1:
             game_category = st.selectbox(
                 "참가 종목 *", ["발로란트", "리그 오브 레전드"]
             )
         with col2:
-            # st.selectbox -> st.multiselect 로 변경 (중복 선택 가능)
-            pref_rounds = st.multiselect(
-                "참가 희망 예선 라운드 (중복 선택 가능) *",
-                [
-                    "1라운드 (10월 7일)",
-                    "2라운드 (10월 14일)",
-                    "3라운드 (10월 21일)",
-                    "4라운드 (10월 28일)",
-                ],
-                default=["1라운드 (10월 7일)"],  # 기본 선택값 지정 (필요 시 제외 가능)
-            )
-        with col3:
             team_name = st.text_input("팀명 *")
-        with col4:
+        with col3:
             university = st.selectbox(
                 "소속 대학교 *",
                 ["세명대학교", "대원대학교", "기타 제천인근 대학교"],
             )
+
+        st.markdown("---")
+        # 예선 라운드 선택 (4개 체크박스로 상시 노출)
+        st.markdown("##### 🗓️ 참가 희망 예선 라운드 선택 (중복 선택 가능) *")
+        rc1, rc2, rc3, rc4 = st.columns(4)
+        
+        r1 = rc1.checkbox("1라운드 (10월 7일)", value=True)
+        r2 = rc2.checkbox("2라운드 (10월 14일)")
+        r3 = rc3.checkbox("3라운드 (10월 21일)")
+        r4 = rc4.checkbox("4라운드 (10월 28일)")
+
+        # 체크된 라운드 수집
+        pref_rounds = []
+        if r1: pref_rounds.append("1라운드 (10월 7일)")
+        if r2: pref_rounds.append("2라운드 (10월 14일)")
+        if r3: pref_rounds.append("3라운드 (10월 21일)")
+        if r4: pref_rounds.append("4라운드 (10월 28일)")
+
+        # 선택한 라운드 별도 안내 상자로 표시
+        if pref_rounds:
+            st.info(f"📌 **선택한 라운드:** {', '.join(pref_rounds)}")
+        else:
+            st.warning("⚠️ 최소 1개 이상의 예선 라운드를 선택해 주세요.")
 
         st.caption("※ 1라운드 탈락 시 2, 3, 4라운드에 재참가가 가능합니다.")
 
